@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지금 민둥 뭐해?</title>
+    <style>
+        @font-face {
+            font-family: 'Pretendard';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-display: swap;
+        } 
+
+        body {
+            font-family: 'Pretendard', sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start; /* 상단부터 정렬 */
+            align-items: center;
+            min-height: 100vh; /* 고정 높이 해제 */
+            background-color: #f5f7fa;
+            margin: 0;
+            padding: 20px 0; /* 상하 여백 추가 */
+            -webkit-font-smoothing: antialiased;
+            overflow-y: auto; /* 내용이 길어지면 스크롤 생성 */
+        } 
+
+        .container {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            text-align: center;
+            width: 450px;
+            max-width: 90%;
+            position: relative;
+            padding-top: 4rem; 
+            margin-bottom: 20px;
+        } 
+
+        /* 공지 팝업 스타일 */
+        #noticeModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+        #modalNoticeText {
+            margin: 20px 0;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            text-align: left;
+            color: #444;
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        .modal-close-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+
+        .admin-login-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: none;
+            border: 1px solid #ddd;
+            color: #999;
+            padding: 5px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            z-index: 10;
+        } 
+
+        h2 { font-size: 1.5rem; color: #333; margin-bottom: 20px; font-weight: 600; } 
+
+        .info-box {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        } 
+
+        #fullDateDisplay {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 15px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        } 
+
+        .status-container { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .call-status, .kakao-status { font-size: 0.95rem; padding: 10px; border-radius: 10px; font-weight: 600; } 
+        .status-available { color: #28a745; background: #e8f5e9; }
+        .status-unavailable { color: #dc3545; background: #fdecea; } 
+
+        .location-display { font-size: 2.2rem; font-weight: 700; color: #007bff; margin: 10px 0; } 
+        #syncStatus { font-size: 0.75rem; margin-top: 10px; color: #007bff; font-weight: 500; } 
+
+        #adminPanel { display: none; margin-top: 20px; padding-top: 20px; border-top: 2px dashed #eee; }
+        .option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .option-btn {
+            padding: 12px;
+            border: 1px solid #007bff;
+            background: white;
+            color: #007bff;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            font-family: 'Pretendard';
+            transition: 0.2s;
+        }
+        .option-btn.active { background: #007bff; color: white; }
+        
+        #noticeInput {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-family: 'Pretendard';
+            resize: vertical;
+        } 
+
+        .logout-btn { margin-top: 20px; background: #f0f0f0; color: #666; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; } 
+        .copyright { margin-top: 20px; font-size: 0.75rem; color: #aaa; text-align: center; padding-bottom: 20px;}
+    </style>
+</head>
+<body> 
+
+    <div id="noticeModal">
+        <div class="modal-content">
+            <h3 style="margin-top:0;">📢 공지사항</h3>
+            <div id="modalNoticeText">공지사항을 불러오는 중...</div>
+            <button class="modal-close-btn" onclick="closeNotice()">확인</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <button class="admin-login-btn" id="loginBtn" onclick="login()">관리자 로그인</button>
+        <h2>지금 민둥 뭐해?</h2> 
+        <div class="info-box">
+            <div id="fullDateDisplay">0000/00/00 - 00:00:00 - 요일</div>
+            <div class="status-container">
+                <div id="callStatus" class="call-status">연결 중...</div>
+                <div id="kakaoStatus" class="kakao-status">연결 중...</div>
+            </div>
+            <div style="color:#888; font-size: 0.9rem; margin-top: 10px;">나 지금</div>
+            <div id="currentLocation" class="location-display">불러오는 중...</div>
+        </div> 
+        <div id="syncStatus">서버 시간 확인 중...</div> 
+
+        <div id="adminPanel">
+            <h3 style="font-size: 1rem; color: #333; margin-bottom: 5px;">관리자 설정</h3>
+            <div style="text-align: left; margin-top: 15px;">
+                <label style="font-size: 0.85rem; font-weight: 600;">공지사항 수정 (Enter 줄바꿈):</label>
+                <textarea id="noticeInput" rows="3" placeholder="공지 내용을 입력하세요"></textarea>
+                <button class="option-btn" style="width: 100%; margin-top: 5px; padding: 8px;" onclick="updateNotice()">공지 적용</button>
+            </div>
+            <div style="text-align: left; margin-top: 15px;">
+                <label style="font-size: 0.85rem; font-weight: 600;">카톡 가능 여부:</label>
+                <div class="option-grid">
+                    <button id="kakaoTrueBtn" class="option-btn" onclick="setKakao(true)">카톡 가능</button>
+                    <button id="kakaoFalseBtn" class="option-btn" onclick="setKakao(false)">카톡 불가능</button>
+                </div>
+            </div>
+            <div style="text-align: left; margin-top: 15px;">
+                <label style="font-size: 0.85rem; font-weight: 600;">위치 설정:</label>
+                <div class="option-grid" id="optionGrid"></div>
+            </div>
+            <button class="logout-btn" onclick="logout()">관리자 모드 종료</button>
+        </div>
+    </div> 
+
+    <div class="copyright">copyright (c) 2026. 민준<br>All rights reserved.</div> 
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-database.js"; 
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAkKhwUxNBkYBwj_1VzX1Bac5A63lueFes",
+            authDomain: "doing-what-1.firebaseapp.com",
+            projectId: "doing-what-1",
+            databaseURL: "https://doing-what-1-default-rtdb.asia-southeast1.firebasedatabase.app"
+        }; 
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const locRef = ref(db, 'minjoon/location');
+        const noticeRef = ref(db, 'minjoon/notice');
+        const kakaoRef = ref(db, 'minjoon/kakaoAvailable');
+
+        let timeOffset = 0;
+        let currentLocation = '알 수 없음';
+        let kakaoAvailable = true;
+        let isAdmin = false; 
+
+        const options = ['학교', '학원', '점호 중', '짐 정리 중', '샤워 중', '머리 감는 중', '화장실', '1층 로비', '쉬는 중', '공부 중'];
+        const grid = document.getElementById('optionGrid');
+        options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'option-btn';
+            btn.innerText = opt;
+            btn.onclick = () => set(locRef, opt);
+            grid.appendChild(btn);
+        }); 
+
+        onValue(locRef, (snapshot) => {
+            currentLocation = snapshot.val() || '알 수 없음';
+            updateDisplay();
+        }); 
+
+        onValue(kakaoRef, (snapshot) => {
+            kakaoAvailable = snapshot.val() !== false;
+            updateDisplay();
+        });
+
+        onValue(noticeRef, (snapshot) => {
+            const noticeText = snapshot.val() || '등록된 공지사항이 없습니다.';
+            document.getElementById('modalNoticeText').innerText = noticeText;
+            document.getElementById('noticeInput').value = noticeText;
+            if(!isAdmin && noticeText !== '등록된 공지사항이 없습니다.') {
+                document.getElementById('noticeModal').style.display = 'flex';
+            }
+        }); 
+
+        window.closeNotice = () => document.getElementById('noticeModal').style.display = 'none';
+        window.updateNotice = () => {
+            set(noticeRef, document.getElementById('noticeInput').value);
+            alert("공지사항 업데이트 완료!");
+        };
+        window.setKakao = (val) => set(kakaoRef, val);
+
+        // 시간 동기화 로직 보강
+        async function syncServerTime() {
+            const syncLabel = document.getElementById('syncStatus');
+            // 여러 API를 순차적으로 시도 (CORS 방지)
+            const apis = [
+                'https://worldtimeapi.org/api/timezone/Asia/Seoul',
+                'https://timeapi.io/api/Time/current/zone?timeZone=Asia/Seoul'
+            ];
+            
+            for (let api of apis) {
+                try {
+                    const res = await fetch(api);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+                    const serverTime = new Date(data.datetime || data.dateTime).getTime();
+                    timeOffset = serverTime - Date.now();
+                    syncLabel.innerText = "● 서버 시간 동기화 완료";
+                    syncLabel.style.color = "#28a745";
+                    return;
+                } catch (e) { console.error("Sync error:", e); }
+            }
+            syncLabel.innerText = "○ 동기화 실패 (기기 시간 사용)";
+            syncLabel.style.color = "#dc3545";
+        } 
+
+        function updateDisplay() {
+            const now = new Date(Date.now() + timeOffset);
+            const h = now.getHours();
+            const m = now.getMinutes();
+            const day = now.getDay();
+            const isWeekend = (day === 0 || day === 6);
+            
+            const dateStr = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+            const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+            document.getElementById('fullDateDisplay').innerText = `${dateStr} - ${timeStr} - ${['일','월','화','수','목','금','토'][day]}요일`; 
+
+            const currentTotalMinutes = (h * 60) + m;
+            let canCall = true;
+            if (!isWeekend && currentTotalMinutes >= 410) canCall = false;
+            else if (isWeekend && currentTotalMinutes >= 430) canCall = false; 
+
+            const callStatusEl = document.getElementById('callStatus');
+            callStatusEl.innerText = canCall ? "📞 전화 가능" : "🚫 전화 불가능";
+            callStatusEl.className = `call-status ${canCall ? 'status-available' : 'status-unavailable'}`;
+
+            const kakaoStatusEl = document.getElementById('kakaoStatus');
+            kakaoStatusEl.innerText = kakaoAvailable ? "💬 카톡 가능" : "📵 카톡 불가";
+            kakaoStatusEl.className = `kakao-status ${kakaoAvailable ? 'status-available' : 'status-unavailable'}`;
+
+            document.getElementById('currentLocation').innerText = currentLocation; 
+
+            if (isAdmin) {
+                document.querySelectorAll('#optionGrid .option-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.innerText === currentLocation);
+                });
+                document.getElementById('kakaoTrueBtn').classList.toggle('active', kakaoAvailable === true);
+                document.getElementById('kakaoFalseBtn').classList.toggle('active', kakaoAvailable === false);
+            }
+        } 
+
+        window.login = () => {
+            if (prompt("비밀번호를 입력하세요.") === "6402") {
+                isAdmin = true;
+                document.getElementById('adminPanel').style.display = 'block';
+                document.getElementById('loginBtn').style.display = 'none';
+                document.getElementById('noticeModal').style.display = 'none';
+                updateDisplay();
+            }
+        }; 
+
+        window.logout = () => {
+            isAdmin = false;
+            document.getElementById('adminPanel').style.display = 'none';
+            document.getElementById('loginBtn').style.display = 'block';
+        }; 
+
+        syncServerTime();
+        setInterval(updateDisplay, 1000);
+        setInterval(syncServerTime, 600000); // 10분마다 재동기화
+    </script>
+</body>
+</html>
