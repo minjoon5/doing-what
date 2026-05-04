@@ -182,6 +182,14 @@
                 <button class="option-btn" style="width: 100%; margin-top: 5px; padding: 8px;" onclick="updateNotice()">공지 적용</button>
             </div>
             <div style="text-align: left; margin-top: 15px;">
+                <label style="font-size: 0.85rem; font-weight: 600;">전화 가능 여부 (수동 설정):</label>
+                <div class="option-grid">
+                    <button id="callAutoBtn" class="option-btn" onclick="setCallOverride('auto')">자동 설정</button>
+                    <button id="callTrueBtn" class="option-btn" onclick="setCallOverride('true')">전화 가능</button>
+                    <button id="callFalseBtn" class="option-btn" onclick="setCallOverride('false')">전화 불가</button>
+                </div>
+            </div>
+            <div style="text-align: left; margin-top: 15px;">
                 <label style="font-size: 0.85rem; font-weight: 600;">카톡 가능 여부:</label>
                 <div class="option-grid">
                     <button id="kakaoTrueBtn" class="option-btn" onclick="setKakao(true)">카톡 가능</button>
@@ -196,7 +204,7 @@
         </div>
     </div> 
 
-    <div class="copyright">copyright (c) 2026. 민준<br>All rights reserved.</div> 
+    <div class="copyright">v2.0</div> 
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -214,13 +222,16 @@
         const locRef = ref(db, 'minjoon/location');
         const noticeRef = ref(db, 'minjoon/notice');
         const kakaoRef = ref(db, 'minjoon/kakaoAvailable');
+        const callOverrideRef = ref(db, 'minjoon/callOverride'); // 전화 수동 설정용
 
         let timeOffset = 0;
         let currentLocation = '알 수 없음';
         let kakaoAvailable = true;
+        let callOverride = 'auto'; // auto, true, false
         let isAdmin = false; 
 
-        const options = ['학교', '학원', '점호 중', '짐 정리 중', '샤워 중', '머리 감는 중', '화장실', '1층 로비', '쉬는 중', '공부 중'];
+        // 옵션 수정: 학원 -> 잠자는 중 / 샤워, 머리감기 -> 씻는 중
+        const options = ['학교', '잠자는 중', '점호 중', '짐 정리 중', '씻는 중', '화장실', '1층 로비', '쉬는 중', '공부 중'];
         const grid = document.getElementById('optionGrid');
         options.forEach(opt => {
             const btn = document.createElement('button');
@@ -240,6 +251,11 @@
             updateDisplay();
         });
 
+        onValue(callOverrideRef, (snapshot) => {
+            callOverride = snapshot.val() || 'auto';
+            updateDisplay();
+        });
+
         onValue(noticeRef, (snapshot) => {
             const noticeText = snapshot.val() || '등록된 공지사항이 없습니다.';
             document.getElementById('modalNoticeText').innerText = noticeText;
@@ -255,11 +271,10 @@
             alert("공지사항 업데이트 완료!");
         };
         window.setKakao = (val) => set(kakaoRef, val);
+        window.setCallOverride = (val) => set(callOverrideRef, val);
 
-        // 시간 동기화 로직 보강
         async function syncServerTime() {
             const syncLabel = document.getElementById('syncStatus');
-            // 여러 API를 순차적으로 시도 (CORS 방지)
             const apis = [
                 'https://worldtimeapi.org/api/timezone/Asia/Seoul',
                 'https://timeapi.io/api/Time/current/zone?timeZone=Asia/Seoul'
@@ -293,9 +308,20 @@
             document.getElementById('fullDateDisplay').innerText = `${dateStr} - ${timeStr} - ${['일','월','화','수','목','금','토'][day]}요일`; 
 
             const currentTotalMinutes = (h * 60) + m;
-            let canCall = true;
-            if (!isWeekend && currentTotalMinutes >= 410) canCall = false;
-            else if (isWeekend && currentTotalMinutes >= 430) canCall = false; 
+            let canCall = false;
+
+            // 자동 시간 로직 설정
+            if (!isWeekend) {
+                // 주중: 00:00 ~ 06:50 (410분)
+                if (currentTotalMinutes >= 0 && currentTotalMinutes <= 410) canCall = true;
+            } else {
+                // 주말: 23:00 (1380분) ~ 24:00 OR 00:00 ~ 07:30 (450분)
+                if (currentTotalMinutes >= 1380 || currentTotalMinutes <= 450) canCall = true;
+            }
+
+            // 관리자 수동 설정 덮어쓰기
+            if (callOverride === 'true') canCall = true;
+            else if (callOverride === 'false') canCall = false;
 
             const callStatusEl = document.getElementById('callStatus');
             callStatusEl.innerText = canCall ? "📞 전화 가능" : "🚫 전화 불가능";
@@ -313,6 +339,10 @@
                 });
                 document.getElementById('kakaoTrueBtn').classList.toggle('active', kakaoAvailable === true);
                 document.getElementById('kakaoFalseBtn').classList.toggle('active', kakaoAvailable === false);
+                
+                document.getElementById('callAutoBtn').classList.toggle('active', callOverride === 'auto');
+                document.getElementById('callTrueBtn').classList.toggle('active', callOverride === 'true');
+                document.getElementById('callFalseBtn').classList.toggle('active', callOverride === 'false');
             }
         } 
 
